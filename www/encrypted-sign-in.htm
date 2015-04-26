@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<!--
+   #
+   # encrypted-sign-in.htm
+   #
+   # Copyright (C) 2009-12 by RStudio, Inc.
+   #
+   # This program is licensed to you under the terms of version 3 of the
+   # GNU Affero General Public License. This program is distributed WITHOUT
+   # ANY EXPRESS OR IMPLIED WARRANTY, INCLUDING THOSE OF NON-INFRINGEMENT,
+   # MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Please refer to the
+   # AGPL (http://www.gnu.org/licenses/agpl-3.0.txt) for more details.
+   #
+   -->
+<html>
+   <head>
+      <title>RCloud Sign In</title>
+      <!-- Bootstrap core CSS -->
+      <link href="assets/css/bootstrap.css" rel="stylesheet">
+      <!-- Custom styles for this template -->
+      <link href="assets/css/style.css" rel="stylesheet">
+      <link href="assets/css/font-awesome.min.css" rel="stylesheet">
+      <script src="assets/js/modernizr.js"></script>
+      <link rel="shortcut icon" href="images/favicon.ico" />
+      <script language='javascript'>
+         function verifyMe()
+         {
+            if(document.getElementById('username').value=='')
+            {
+               alert('You must enter a username');
+               document.getElementById('username').focus();
+               return false;
+            }
+            if(document.getElementById('password').value=='')
+            {
+               alert('You must enter a password');
+               document.getElementById('password').focus();
+               return false;
+            }
+            return true;
+         }
+      </script>
+      <link rel="stylesheet" href="rstudio.css" type="text/css"/>
+      <style type="text/css">
+         body, td {
+         font-size: 12px;
+         padding:25px;
+         }
+         #caption {
+         text-align: center;
+         font-size: 14px;
+         margin-right: 0;
+         width: 100%;
+         }
+         input[type=text], input[type=password] {
+         width: 262px;
+         border: 1px solid #aaa;
+         font-size: 14px;
+         padding: 3px;
+         -moz-border-radius: 4px;
+         -webkit-border-radius: 4px;
+         outline: none;
+         }
+         #buttonpanel {
+         text-align: center;
+         margin-top: 12px;
+         }
+         #errorpanel {
+         text-align: center;
+         padding: 0 25% 0 25%;
+         color: red;
+         display: #errorDisplay#;
+         font-weight: bold;
+         }
+      </style>
+      <script type="text/javascript" src="js/encrypt.min.js"></script>
+      <script type="text/javascript">
+         function prepare() {
+            if (!verifyMe())
+               return false;
+            try {
+               var payload = document.getElementById('username').value + "\n" +
+                             document.getElementById('password').value;
+               var xhr = new XMLHttpRequest();
+               xhr.open("GET", "#'publicKeyUrl#", true);
+               xhr.onreadystatechange = function() {
+                  try {
+                     if (xhr.readyState == 4) {
+                        if (xhr.status != 200) {
+                           var errorMessage;
+                           if (xhr.status == 0)
+                              errorMessage = "Error: Could not reach server--check your internet connection";
+                           else
+                              errorMessage = "Error: " + xhr.statusText;
+                              
+                           var errorDiv = document.getElementById('errorpanel');
+                           errorDiv.innerHTML = '';
+                           var errorp = document.createElement('p');
+                           errorDiv.appendChild(errorp);
+                           if (typeof(errorp.innerText) == 'undefined')
+                              errorp.textContent = errorMessage;
+                           else
+                              errorp.innerText = errorMessage;
+                           errorDiv.style.display = 'block';
+                        }
+                        else {
+                           var response = xhr.responseText;
+                           var chunks = response.split(':', 2);
+                           var exp = chunks[0];
+                           var mod = chunks[1];
+                           var encrypted = encrypt(payload, exp, mod);
+                           document.getElementById('persist').value = document.getElementById('staySignedIn').checked ? "1" : "0";
+                           document.getElementById('package').value = encrypted;
+                           document.getElementById('clientPath').value = window.location.pathname;
+                           document.realform.submit();
+                        }
+                     }
+                  } catch (exception) {
+                     alert("Error: " + exception);
+                  }
+               };
+               xhr.send(null);
+            } catch (exception) {
+               alert("Error: " + exception);
+            }
+         }
+         function submitRealForm() {
+            if (prepare())
+               document.realform.submit();
+         }
+      </script>
+   </head>
+   <body>
+      <!-- Fixed navbar -->
+      <div class="navbar navbar-default navbar-fixed-top" role="navigation">
+         <div class="container">
+            <div class="navbar-header">
+               <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+               <span class="sr-only">Toggle navigation</span>
+               <span class="icon-bar"></span>
+               <span class="icon-bar"></span>
+               <span class="icon-bar"></span>
+               </button>
+               <a class="navbar-brand" href="/">RCloud</a>
+            </div>
+         </div>
+      </div>
+      <div id="headerwrap">
+         <div class="container">
+            <div class="row">
+               
+                  <div class="col-lg-8 col-lg-offset-2" id="errorpanel">
+                     <p><b>Error: #errorMessage#</b></p>
+                  </div>
+                  <div class="col-lg-8 col-lg-offset-2">
+                  <form  method="POST" #!formAction#>
+                  <table style="margin: 0 auto" id="border" align="s" cellpadding="20">
+                     <tr>
+                        <td>
+                           <h3>Sign in to RCloud!</h2>
+                           <br>
+                           <h5 align="left">
+                              <label for="username">Username:</label><br />
+                           </h5>
+                           <p>
+                              <input type='text' 
+                                 name='username' 
+                                 value='' 
+                                 id='username' 
+                                 size='45'/><br />
+                           </p>
+                           <h5 align="left">
+                              <label style="text-align: left" for="password">Password:</label><br />
+                           </h5>
+                           <p>
+                              <input type='password' 
+                                 name='password' 
+                                 value='' 
+                                 id='password' 
+                                 size='45'/><br />
+                           </p>
+                           <h5>
+                              <input type="checkbox" name="staySignedIn" id="staySignedIn" value="1"/>
+                              <label for="staySignedIn">Stay signed in</label>
+                           </h5>
+                           <input type="hidden" name="appUri" value="#appUri#"/>
+                           <div>
+                           <div id="buttonpanel">
+                              <button class="btn btn-theme" type="submit">
+                                 Sign In
+                              </button>
+                              <a href="registration.html">
+                                 <div class="btn btn-theme">Register</div>
+                              </a>
+                           </div>
+                          </div>
+                           <br>
+                        </td>
+                     </tr>
+                  </table>
+
+                  </form>
+                  </div>
+            </div>
+            <!-- /row -->
+         </div>
+         <!-- /container -->
+      </div>
+      <!-- /headerwrap -->
+      <div id="headerwrap"/>
+
+      <form action="#action#" name="realform" method="POST">
+         <input type="hidden" name="persist" id="persist" value=""/>
+         <input type="hidden" name="appUri" value="#appUri#"/>
+         <input type="hidden" name="clientPath" id="clientPath" value=""/>
+         <input id="package" type="hidden" name="v" value=""/>
+      </form>
+      <script type="text/javascript">
+         document.getElementById('username').focus();
+      </script>
+   </body>
+</html>
