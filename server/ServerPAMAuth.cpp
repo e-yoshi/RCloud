@@ -70,6 +70,8 @@ const char * const kUserId = "user-id";
 // It's important that URIs be in the root directory, so the cookie
 // gets set/unset at the correct scope!
 const char * const kDoSignIn = "/auth-do-sign-in";
+const char * const kDoRegister = "/auth-do-register";
+
 const char * const kPublicKey = "/auth-public-key";
 
 const char * const kAppUri = "appUri";
@@ -213,6 +215,39 @@ void signIn(const http::Request& request,
    pResponse->setContentType("text/html");
 }
 
+void registerUser(const http::Request& request,
+				http::Response* pResponse)
+{
+		auth::secure_cookie::remove(request, kUserId, "", pResponse);
+		
+		std::map<std::string,std::string> variables;
+		variables["action"] = applicationURL(request, kDoRegister);
+		variables["publicKeyUrl"] = applicationURL(request, kPublicKey);
+		
+		// setup template variables
+		std::string error = request.queryParamValue(kErrorParam);
+		variables[kErrorMessage] = error;
+		variables[kErrorDisplay] = error.empty() ? "none" : "block";
+		if (server::options().authEncryptPassword())
+			variables[kFormAction] = "action=\"javascript:void\" "
+			"onsubmit=\"submitRealForm();return false\"";
+		else
+			variables[kFormAction] = "action=\"" + variables["action"] + "\"";
+		
+		variables[kAppUri] = request.queryParamValue(kAppUri);
+		
+		// get the path to the JS file
+		Options& options = server::options();
+		FilePath wwwPath(options.wwwLocalPath());
+		FilePath signInPath = wwwPath.complete("register.html");
+		
+		text::TemplateFilter filter(variables);
+		
+		pResponse->setFile(signInPath, request, filter);
+		pResponse->setContentType("text/html");
+}
+	
+	
 void publicKey(const http::Request&,
                http::Response* pResponse)
 {
@@ -331,6 +366,98 @@ void doSignIn(const http::Request& request,
                                  "Incorrect or invalid username/password"));
    }
 }
+	
+std::string exec(char* cmd) {
+		FILE* pipe = popen(cmd, "r");
+		if (!pipe) return "ERROR";
+		char buffer[128];
+		std::string result = "";
+		while(!feof(pipe)) {
+			if(fgets(buffer, 128, pipe) != NULL)
+				result += buffer;
+		}
+		pclose(pipe);
+		return result;
+}
+	
+void doRegister(const http::Request& request,
+					http::Response* pResponse){
+	std::string appUri = request.formFieldValue(kAppUri);
+	if (appUri.empty())
+		appUri = "/";
+	
+	std::string username, password;
+	
+	if (server::options().authEncryptPassword())
+	{
+		std::string encryptedValue = request.formFieldValue("v");
+		std::string plainText;
+		Error error = core::system::crypto::rsaPrivateDecrypt(encryptedValue,
+															  &plainText);
+		if (error)
+		{
+			LOG_ERROR(error);
+			pResponse->setMovedTemporarily(
+										   request,
+										   applicationSignInURL(request,
+																appUri,
+																"Temporary server error,"
+																" please try again"));
+			return;
+		}
+		
+		size_t splitAt = plainText.find('\n');
+		if (splitAt == std::string::npos)
+		{
+			LOG_ERROR_MESSAGE("Didn't find newline in plaintext");
+			pResponse->setMovedTemporarily(
+										   request,
+										   applicationSignInURL(request,
+																appUri,
+																"Temporary server error,"
+																" please try again"));
+			return;
+		}
+		username = plainText.substr(0, splitAt);
+		password = plainText.substr(splitAt + 1, plainText.size());
+	}
+	else
+	{
+		username = request.formFieldValue("username");
+		password = request.formFieldValue("password");
+	}
+	
+	// tranform to local username
+	username = auth::handler::userIdentifierToLocalUsername(username);
+	
+	onUserUnauthenticated(username);
+	
+	if ( pamLogin(username, password) && server::auth::validateUser(username))
+	{
+		pResponse->setMovedTemporarily(
+            request,
+            applicationURL(request, "/register?error=Invalid+username"));
+	}
+	else
+	{
+	//Add user
+	
+		struct passwd* pwd;
+		char str[150];
+		char shell[] = "/bin/bash";
+		
+			sprintf(str,"useradd -d /home/%s -s %s -m -p %s	%s", username.c_str(), shell, password.c_str(), username.c_str());
+			exec(str);
+		
+		pResponse->setMovedTemporarily(
+									   request,
+									   applicationSignInURL(request,
+															appUri,
+															""));
+
+	}
+	
+}
 
 void signOut(const http::Request& request,
              http::Response* pResponse)
@@ -404,6 +531,7 @@ Error initialize()
    pamHandler.signInThenContinue = signInThenContinue;
    pamHandler.refreshCredentialsThenContinue = refreshCredentialsThenContinue;
    pamHandler.signIn = signIn;
+   pamHandler.registerUser = registerUser;
    pamHandler.signOut = signOut;
    if (canSetSignInCookies())
       pamHandler.setSignInCookies = setSignInCookies;
@@ -412,6 +540,7 @@ Error initialize()
    // add pam-specific auth handlers
    uri_handlers::addBlocking(kDoSignIn, doSignIn);
    uri_handlers::addBlocking(kPublicKey, publicKey);
+	uri_handlers::addBlocking(kDoRegister, doRegister);
 
    // initialize crypto
    return core::system::crypto::rsaInit();

@@ -56,6 +56,8 @@ void updateCredentialsNotSupported(
 
 // uri constants
 const char * const kSignIn = "/auth-sign-in";
+const char * const kReg = "/register";
+
 const char * const kSignOut = "/auth-sign-out";
 const char * const kRefreshCredentialsAndContinue = "/auth-refresh-credentials";
 
@@ -97,6 +99,7 @@ void registerHandler(const Handler& handler)
 
    // register uri handlers
    uri_handlers::addBlocking(kSignIn, s_handler.signIn);
+   uri_handlers::addBlocking(kReg, s_handler.registerUser);
 
    uri_handlers::addBlocking(kSignOut,
                              auth::secureHttpHandler(

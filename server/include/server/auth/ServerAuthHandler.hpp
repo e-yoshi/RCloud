@@ -66,6 +66,7 @@ struct Handler
    core::http::AsyncUriHandlerFunction updateCredentials;
    core::http::UriHandlerFunction signIn;
    core::http::UriHandlerFunction signOut;
+   core::http::UriHandlerFunction registerUser;
 
    boost::function<void(const core::http::Request&,
                         const std::string&,
