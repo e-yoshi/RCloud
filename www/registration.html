@@ -1,20 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="utf-8">
-	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<meta name="description" content="">
-	<meta name="author" content="">
+   <meta charset="utf-8">
+   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+   <meta name="viewport" content="width=device-width, initial-scale=1">
+   <meta name="description" content="">
+   <meta name="author" content="">
 
-	<!-- Bootstrap core CSS -->
-	<link href="assets/css/bootstrap.css" rel="stylesheet">
+   <!-- Bootstrap core CSS -->
+   <link href="assets/css/bootstrap.css" rel="stylesheet">
 
-	<!-- Custom styles for this template -->
-	<link href="assets/css/style.css" rel="stylesheet">
-	<link href="assets/css/font-awesome.min.css" rel="stylesheet">
+   <!-- Custom styles for this template -->
+   <link href="assets/css/style.css" rel="stylesheet">
+   <link href="assets/css/font-awesome.min.css" rel="stylesheet">
          <link rel="stylesheet" href="rstudio.css" type="text/css"/>
-
+      <script language='javascript'>
+         function verifyMe()
+         {
+            if(document.getElementById('username').value=='')
+            {
+               alert('You must enter a username');
+               document.getElementById('username').focus();
+               return false;
+            }
+            if(document.getElementById('password').value=='')
+            {
+               alert('You must enter a password');
+               document.getElementById('password').focus();
+               return false;
+            }
+            return true;
+         }
+      </script>
 
   <style type="text/css">
   body, td {
@@ -53,32 +70,92 @@ input[type=text], input[type=password] {
 <!--[if lt IE 9]><script src="../../assets/js/ie8-responsive-file-warning.js"></script><![endif]-->
 
 <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
-	<!--[if lt IE 9]>
-	<script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
-	<script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
-	<![endif]-->
+   <!--[if lt IE 9]>
+   <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+   <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+   <![endif]-->
 
-	<script src="assets/js/modernizr.js"></script>
-	<link rel="shortcut icon" href="images/favicon.ico" />
-	<title>RCloud - Registration</title>
+   <script src="assets/js/modernizr.js"></script>
+
+
+      <script type="text/javascript">
+         function prepare() {
+            if (!verifyMe())
+               return false;
+            try {
+               var payload = document.getElementById('username').value + "\n" +
+                             document.getElementById('password').value;
+               var xhr = new XMLHttpRequest();
+               xhr.open("GET", "#'publicKeyUrl#", true);
+               xhr.onreadystatechange = function() {
+                  try {
+                     if (xhr.readyState == 4) {
+                        if (xhr.status != 200) {
+                           var errorMessage;
+                           if (xhr.status == 0)
+                              errorMessage = "Error: Could not reach server--check your internet connection";
+                           else
+                              errorMessage = "Error: " + xhr.statusText;
+                              
+                           var errorDiv = document.getElementById('errorpanel');
+                           errorDiv.innerHTML = '';
+                           var errorp = document.createElement('p');
+                           errorDiv.appendChild(errorp);
+                           if (typeof(errorp.innerText) == 'undefined')
+                              errorp.textContent = errorMessage;
+                           else
+                              errorp.innerText = errorMessage;
+                           errorDiv.style.display = 'block';
+                        }
+                        else {
+                           var response = xhr.responseText;
+                           var chunks = response.split(':', 2);
+                           var exp = chunks[0];
+                           var mod = chunks[1];
+                           var encrypted = encrypt(payload, exp, mod);
+                           //document.getElementById('persist').value = document.getElementById('staySignedIn').checked ? "1" : "0";
+                           document.getElementById('package').value = encrypted;
+                           document.getElementById('clientPath').value = window.location.pathname;
+                           document.realform.submit();
+                        }
+                     }
+                  } catch (exception) {
+                     alert("Error: " + exception);
+                  }
+               };
+               xhr.send(null);
+            } catch (exception) {
+               alert("Error: " + exception);
+            }
+         }
+         function submitRealForm() {
+            console.log("testing error message");
+            if (prepare())
+               document.realform.submit();
+         }
+      </script>
+
+
+   <link rel="shortcut icon" href="images/favicon.ico" />
+   <title>RCloud - Registration</title>
 </head>
 <body>
-	<!-- Fixed navbar -->
-	<div class="navbar navbar-default navbar-fixed-top" role="navigation">
-		<div class="container">
-			<div class="navbar-header">
-				<button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-					<span class="sr-only">Toggle navigation</span>
-					<span class="icon-bar"></span>
-					<span class="icon-bar"></span>
-					<span class="icon-bar"></span>
-				</button>
-				<a class="navbar-brand" href="/">RCloud</a>
-			</div>
-		</div>
-	</div>
+   <!-- Fixed navbar -->
+   <div class="navbar navbar-default navbar-fixed-top" role="navigation">
+      <div class="container">
+         <div class="navbar-header">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+               <span class="sr-only">Toggle navigation</span>
+               <span class="icon-bar"></span>
+               <span class="icon-bar"></span>
+               <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">RCloud</a>
+         </div>
+      </div>
+   </div>
 
-	<div id="headerwrap">
+   <div id="headerwrap">
       <div class="container">
          <div class="row">
 
@@ -172,5 +249,14 @@ input[type=text], input[type=password] {
       </div>
       <!-- /headerwrap -->
       <div id="headerwrap"/>
+      <form action="#action#" name="realform" method="POST">
+         <input type="hidden" name="persist" id="persist" value=""/>
+         <input type="hidden" name="appUri" value="#appUri#"/>
+         <input type="hidden" name="clientPath" id="clientPath" value=""/>
+         <input id="package" type="hidden" name="v" value=""/>
+      </form>
+      <script type="text/javascript">
+         document.getElementById('username').focus();
+      </script>
    </body>
    </html>
